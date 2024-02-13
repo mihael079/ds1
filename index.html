@@ -1,0 +1,63 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Application</title>
+  <!-- Add your CSS stylesheets or links here -->
+  <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+
+<div class="user-info-container">
+  <label for="username">Enter Source Code/Username:</label>
+  <input type="text" id="username" placeholder="Enter your username" required>
+
+  <label for="region">Region:</label>
+  <select id="region" required>
+    <option value="northAmerica">North America</option>
+    <option value="europe">Europe</option>
+    <option value="asia">Asia</option>
+    <option value="southAmerica">South America</option>
+    <option value="africa">Africa</option>
+    <option value="australia">Australia</option>
+  </select>
+
+  <label for="industry">Industry:</label>
+  <select id="industry" required>
+    <option value="tech">Technology</option>
+    <option value="finance">Finance</option>
+    <option value="healthcare">Healthcare</option>
+    <option value="manufacturing">Manufacturing</option>
+    <option value="education">Education</option>
+    <option value="entertainment">Entertainment</option>
+  </select>
+
+  <label for="age">Age:</label>
+  <input type="number" id="age" placeholder="Enter your age" min="0" max="80" required>
+
+  <label for="gender">Gender:</label>
+  <select id="gender" required>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+    <option value="other">Other</option>
+  </select>
+
+  <button id="submitUserInfo">Submit</button>
+</div>
+
+<div class="container">
+  <h1 id="question"></h1>
+  <ul id="answers"></ul>
+</div>
+
+<!-- Add your script tags, including the script for the quiz functionality -->
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script type="module" src="config.js"></script>
+<script type="module" src="questions.js"></script>
+<script type="module" src="sketch.js"></script>
+</body>
+</html>
