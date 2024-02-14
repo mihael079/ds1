@@ -1,4 +1,3 @@
-// Import the required functions from the Firebase SDK
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
 import { getFirestore, collection, addDoc } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
 import { questions } from './questions.js';
@@ -25,9 +24,15 @@ let score = 0;
 let userInfo = {};
 let attributeScores = {};
 
-// Setup quiz function
+let progressBarInitialized = false;
+
 // Setup quiz function
 function setupQuiz() {
+  initProgressBar();
+  if (!progressBarInitialized) {
+    initProgressBar();
+    progressBarInitialized = true;
+  }
   $('#submitUserInfo').on('click', function () {
     userInfo.username = $('#username').val();
     userInfo.region = $('#region').val();
@@ -41,7 +46,11 @@ function setupQuiz() {
 
     $('.user-info-container').hide();
 
-    displayQuestion(organizedData[currentQuestionIndex]);
+    if (organizedData.length > 0) {
+      displayQuestion(organizedData[currentQuestionIndex]);
+    } else {
+      console.error('No questions available.');
+    }
   });
 
   $('#answers').on('click', '.answer-button', function () {
@@ -50,10 +59,14 @@ function setupQuiz() {
   });
 }
 
-
 // Save the user's quiz data to Firebase
-async function saveQuizData(userInfo, attributeScores) {
+async function saveQuizData() {
   try {
+    // Check if user information and attribute scores are available
+    if (!userInfo || !attributeScores) {
+      throw new Error('User information or attribute scores not available.');
+    }
+
     // Create a new document in the "quizData" collection
     const docRef = await addDoc(collection(db, 'quizData'), {
       username: userInfo.username,
@@ -65,10 +78,41 @@ async function saveQuizData(userInfo, attributeScores) {
     });
 
     console.log('Quiz data saved with ID: ', docRef.id);
+
+    // Display an alert after successfully saving the data
+    alert('Quiz data saved successfully!');
   } catch (error) {
     console.error('Error saving quiz data: ', error);
+
+    // Display an alert if there's an error saving the data
+    alert('Error saving quiz data. Please try again.');
   }
 }
+
+
+// Function to initialize and add "Save Score" button at the end of the quiz
+function initSaveScoreButton() {
+  const $saveScoreButton = $('<button>').attr('id', 'saveScoreButton').text('Save Score');
+  $saveScoreButton.on('click', handleSaveScore);
+
+  // Append the button to the container
+  $('.container').append($saveScoreButton);
+}
+
+
+
+function handleSaveScore() {
+  // Check if there is user information available
+  if (Object.keys(userInfo).length === 0) {
+    console.error('User information not available.');
+    return;
+  }
+
+  // Save the user's quiz data to Firebase
+  saveQuizData(userInfo, attributeScores);
+}
+
+
 
 
 // Function to shuffle an array
@@ -137,48 +181,91 @@ function convertData(data) {
 }
 
 // Function to handle the selected answer and navigate to the next question
+// Function to handle the selected answer and navigate to the next question
 function handleAnswerClick(answerIndex) {
   const currentQuestion = organizedData[currentQuestionIndex];
-  const selectedAnswer = currentQuestion.ANSWERS[answerIndex];
 
-  // Find the selected answer in the original questions array
-  const selectedQuestion = questions.find(q =>
-    q.QUESTIONS === currentQuestion.QUESTIONS && q.ANSWERS === selectedAnswer
-  );
+  try {
+    if (!currentQuestion) {
+      throw new Error('Current question is undefined. Index: ' + currentQuestionIndex);
+    }
 
-  if (selectedQuestion) {
+    let answersArray;
+
+    // Check if ANSWERS is a string and not an array
+    if (typeof currentQuestion.ANSWERS === 'string') {
+      // Split the ANSWERS string into an array of lines (assuming each line is an answer)
+      answersArray = currentQuestion.ANSWERS.split('\n').map(answer => answer.trim());
+    } else if (Array.isArray(currentQuestion.ANSWERS)) {
+      // If ANSWERS is already an array, use it directly
+      answersArray = currentQuestion.ANSWERS.map(answer => answer.trim());
+    } else {
+      throw new Error('Invalid format for ANSWERS property.');
+    }
+
+    if (!Array.isArray(answersArray) || answersArray.length === 0) {
+      throw new Error('Invalid format for ANSWERS property.');
+    }
+
+    // Get the selected answer based on the provided index
+    const selectedAnswer = answersArray[answerIndex];
+
+    // Find the selected answer in the original questions array
+    const selectedQuestion = questions.find(q =>
+      q.QUESTIONS === currentQuestion.QUESTIONS &&
+      ((typeof q.ANSWERS === 'string' && q.ANSWERS.includes(selectedAnswer)) ||
+      (Array.isArray(q.ANSWERS) && q.ANSWERS.includes(selectedAnswer)))
+    );
+
+    if (!selectedQuestion) {
+      throw new Error('Selected question not found in the original questions array. Selected Answer: ' + selectedAnswer);
+    }
+
     // Update the total score with the score from the selected answer
     score += parseInt(selectedQuestion.SCORE, 10);
-  }
 
-  // Display the updated score (modify this based on your HTML structure)
-  console.log('Score: ' + score);
+    // Display the updated score (modify this based on your HTML structure)
+    console.log('Score: ' + score);
 
-  // Check if it's the last question
-  if (currentQuestionIndex < organizedData.length - 1) {
-    // Move to the next question
-    currentQuestionIndex++;
-    displayQuestion(organizedData[currentQuestionIndex]);
-  } else {
-    // End of quiz logic (e.g., show results)
-    displayEndOfQuiz();
+    // Check if it's the last question
+    if (currentQuestionIndex < organizedData.length - 1) {
+      // Move to the next question
+      currentQuestionIndex++;
+      displayQuestion(organizedData[currentQuestionIndex]);
+    } else {
+      // End of quiz logic (e.g., show results)
+      displayEndOfQuiz();
+    }
+  } catch (error) {
+    console.error(error.message);
   }
 }
 
+
+
+
+
+
+// Modified resetQuiz function
 function resetQuiz() {
   // Reset variables
   currentQuestionIndex = 0;
   score = 0;
   userInfo = {};
-  attributeScores = {}; // Clear attributeScores
 
   // Clear the displayed content
   $('#question').empty();
   $('#answers').empty();
-  $('.attribute-container, #resetButton, .read-more-container, .register-container, .progress-bar-container').remove(); // Remove additional containers
+  $('.attribute-container, #resetButton, .read-more-container, .register-container').remove(); // Remove additional containers
+
+  // Update the progress bar width to 0%
+  $('.progress-bar').css('width', '0%');
 
   // Show user information input fields and dropdowns after resetting
   $('.user-info-container').show();
+
+  // Clear previous data
+  clearPreviousData();
 
   // Restart the quiz
   setupQuiz();
@@ -205,7 +292,22 @@ function initProgressBar() {
   const $progressBar = $('<div>').addClass('progress-bar');
 
   $progressBarContainer.append($progressBar);
-  $('.container').append($progressBarContainer);
+
+  // Check if the progress bar container already exists
+  if ($('.progress-bar-container').length === 0) {
+    $('.container').append($progressBarContainer);
+  }
+}
+
+
+// Function to update progress bar based on current question index
+function updateProgressBar(currentIndex, totalQuestions) {
+  const progressPercentage = (currentIndex / totalQuestions) * 100;
+
+  const $progressBarContainer = $('.progress-bar-container');
+  const $progressBar = $progressBarContainer.find('.progress-bar');
+
+  $progressBar.css('width', progressPercentage + '%');
 }
 
 // Function to remove progress bar
@@ -216,38 +318,39 @@ function removeProgressBar() {
 // Display question and progress bar
 function displayQuestion(question) {
   if (question) {
-      $('#question').text(question.QUESTIONS);
+    $('#question').text(question.QUESTIONS);
 
-      const $answersList = $('#answers');
-      $answersList.empty();
+    const $answersList = $('#answers');
+    $answersList.empty();
 
-      if (Array.isArray(question.ANSWERS)) {
-          question.ANSWERS.forEach((answer, index) => {
-              const $answerItem = $('<li>')
-                  .addClass('answer-button')
-                  .text(answer)
-                  .css('background-color', getARandomColor());
-              $answersList.append($answerItem);
-          });
-      } else {
-          const $answerItem = $('<li>')
-              .addClass('answer-button')
-              .text(question.ANSWERS)
-              .css('background-color', getARandomColor());
-          $answersList.append($answerItem);
-      }
+    if (Array.isArray(question.ANSWERS)) {
+      question.ANSWERS.forEach((answer, index) => {
+        const $answerItem = $('<li>')
+          .addClass('answer-button')
+          .text(answer)
+          .css('background-color', getARandomColor());
+        $answersList.append($answerItem);
+      });
+    } else {
+      const $answerItem = $('<li>')
+        .addClass('answer-button')
+        .text(question.ANSWERS)
+        .css('background-color', getARandomColor());
+      $answersList.append($answerItem);
+    }
 
-      // Display progress bar on the first question
-      if (currentQuestionIndex === 0) {
-          initProgressBar();
-      }
+    // Display progress bar on the first question
+    if (currentQuestionIndex === 0) {
+      initProgressBar();
+    }
 
-      // Update progress bar
-      displayProgressBar(currentQuestionIndex + 1, organizedData.length);
+    // Update progress bar
+    updateProgressBar(currentQuestionIndex + 1, organizedData.length);
   } else {
-      console.error('No question found');
+    console.error('No question found');
   }
 }
+
 
 // Function to generate a random color
 function getARandomColor() {
@@ -304,6 +407,12 @@ function displayEndOfQuiz() {
   // Clear previous data and scores
   organizedData = [];
 
+ // Append the "Save Score" button to the container
+const $saveScoreButton = $('<button>').attr('id', 'saveScoreButton').text('Save Score');
+$saveScoreButton.on('click', saveQuizData);  // Bind the saveQuizData function to the click event
+$('.container').append($saveScoreButton);
+
+
   // Display reset button
   const $resetButton = $('<button>').attr('id', 'resetButton').text('Reset Quiz');
   $resetButton.on('click', resetQuiz);
@@ -337,13 +446,25 @@ function getRandomColor() {
 
 
 
-// Function to clear previous data and scores
 function clearPreviousData() {
   organizedData = [];
+
+  // Reset the progress bar to 0% and remove any existing progress bar container
+  const $existingProgressBarContainer = $('.progress-bar-container');
+  if ($existingProgressBarContainer.length > 0) {
+    $existingProgressBarContainer.remove();
+  }
+
+  // Initialize a new progress bar
+  initProgressBar();
 }
+
 
 // Document ready function
 $(document).ready(() => {
   // Call the new setupQuiz function to start the quiz
   setupQuiz();
+
+  $('#saveScoreButton').on('click', saveQuizData);
 });
+
