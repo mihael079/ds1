@@ -1,3 +1,4 @@
+// Import the required functions from the Firebase SDK
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
 import { getFirestore, collection, addDoc } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
 import { questions } from './questions.js';
@@ -59,14 +60,11 @@ function setupQuiz() {
   });
 }
 
-// Save the user's quiz data to Firebase
-async function saveQuizData() {
-  try {
-    // Check if user information and attribute scores are available
-    if (!userInfo || !attributeScores) {
-      throw new Error('User information or attribute scores not available.');
-    }
 
+
+// Save the user's quiz data to Firebase
+async function saveQuizData(userInfo, attributeScores) {
+  try {
     // Create a new document in the "quizData" collection
     const docRef = await addDoc(collection(db, 'quizData'), {
       username: userInfo.username,
@@ -78,41 +76,10 @@ async function saveQuizData() {
     });
 
     console.log('Quiz data saved with ID: ', docRef.id);
-
-    // Display an alert after successfully saving the data
-    alert('Quiz data saved successfully!');
   } catch (error) {
     console.error('Error saving quiz data: ', error);
-
-    // Display an alert if there's an error saving the data
-    alert('Error saving quiz data. Please try again.');
   }
 }
-
-
-// Function to initialize and add "Save Score" button at the end of the quiz
-function initSaveScoreButton() {
-  const $saveScoreButton = $('<button>').attr('id', 'saveScoreButton').text('Save Score');
-  $saveScoreButton.on('click', handleSaveScore);
-
-  // Append the button to the container
-  $('.container').append($saveScoreButton);
-}
-
-
-
-function handleSaveScore() {
-  // Check if there is user information available
-  if (Object.keys(userInfo).length === 0) {
-    console.error('User information not available.');
-    return;
-  }
-
-  // Save the user's quiz data to Firebase
-  saveQuizData(userInfo, attributeScores);
-}
-
-
 
 
 // Function to shuffle an array
@@ -407,12 +374,6 @@ function displayEndOfQuiz() {
   // Clear previous data and scores
   organizedData = [];
 
- // Append the "Save Score" button to the container
-const $saveScoreButton = $('<button>').attr('id', 'saveScoreButton').text('Save Score');
-$saveScoreButton.on('click', saveQuizData);  // Bind the saveQuizData function to the click event
-$('.container').append($saveScoreButton);
-
-
   // Display reset button
   const $resetButton = $('<button>').attr('id', 'resetButton').text('Reset Quiz');
   $resetButton.on('click', resetQuiz);
@@ -464,7 +425,5 @@ function clearPreviousData() {
 $(document).ready(() => {
   // Call the new setupQuiz function to start the quiz
   setupQuiz();
-
-  $('#saveScoreButton').on('click', saveQuizData);
 });
 
