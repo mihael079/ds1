@@ -45,6 +45,9 @@ function setupQuiz() {
     organizedData = shuffle(organizedData);
     organizedData = selectQuestions(organizedData, 3);
 
+    // Filter out questions with SL NO 25 and SL NO 26
+    organizedData = organizedData.filter(item => item["SL NO"] !== "25" && item["SL NO"] !== "26");
+
     $('.user-info-container').hide();
 
     if (organizedData.length > 0) {
@@ -62,9 +65,21 @@ function setupQuiz() {
 
 
 
+
+let quizDataSubmitted = false; // Flag to track whether quiz data has been submitted
+
 // Save the user's quiz data to Firebase
 async function saveQuizData(userInfo, attributeScores) {
   try {
+    // Check if data has already been submitted
+    if (quizDataSubmitted) {
+      alert('Quiz data has already been submitted!');
+      return;
+    }
+
+    // Set the flag to true to prevent multiple submissions
+    quizDataSubmitted = true;
+
     // Create a new document in the "quizData" collection
     const docRef = await addDoc(collection(db, 'quizData'), {
       username: userInfo.username,
@@ -76,11 +91,11 @@ async function saveQuizData(userInfo, attributeScores) {
     });
 
     console.log('Quiz data saved with ID: ', docRef.id);
+    alert('Quiz data submitted successfully!');
   } catch (error) {
     console.error('Error saving quiz data: ', error);
   }
 }
-
 
 // Function to shuffle an array
 function shuffle(array) {
@@ -100,6 +115,13 @@ function selectQuestions(data, questionsPerAttribute) {
   const selectedQuestions = {};
 
   data.forEach(item => {
+    const slNo = item["SL NO"];
+
+    // Exclude questions with SL NO 25 and SL NO 26
+    if (slNo === "25" || slNo === "26") {
+      return;
+    }
+
     const attributeName = item.ATTRIBUTE;
 
     if (!selectedQuestions[attributeName]) {
@@ -114,12 +136,20 @@ function selectQuestions(data, questionsPerAttribute) {
   return Object.values(selectedQuestions).flat();
 }
 
+
+
+// Function to convert the questions data to the desired structure
 // Function to convert the questions data to the desired structure
 function convertData(data) {
   const convertedData = {};
 
   data.forEach(item => {
     const slNo = item["SL NO"];
+
+    // Exclude questions with SL NO 25 and SL NO 26
+    if (slNo === "25" || slNo === "26") {
+      return;
+    }
 
     if (!convertedData[slNo]) {
       convertedData[slNo] = [];
@@ -146,6 +176,8 @@ function convertData(data) {
 
   return result;
 }
+
+
 
 // Function to handle the selected answer and navigate to the next question
 // Function to handle the selected answer and navigate to the next question
@@ -211,19 +243,17 @@ function handleAnswerClick(answerIndex) {
 
 
 
-
-
-// Modified resetQuiz function
 function resetQuiz() {
   // Reset variables
   currentQuestionIndex = 0;
   score = 0;
   userInfo = {};
+  quizDataSubmitted = false;
 
   // Clear the displayed content
   $('#question').empty();
   $('#answers').empty();
-  $('.attribute-container, #resetButton, .read-more-container, .register-container').remove(); // Remove additional containers
+  $('.attribute-container, .save-container, #resetButton, .read-more-container, .register-container').remove(); // Remove additional containers
 
   // Update the progress bar width to 0%
   $('.progress-bar').css('width', '0%');
@@ -237,6 +267,12 @@ function resetQuiz() {
   // Restart the quiz
   setupQuiz();
 }
+
+
+
+
+
+
 
 
 
@@ -356,7 +392,9 @@ function displayEndOfQuiz() {
   Object.keys(attributeScores).forEach(attributeName => {
     const totalScore = attributeScores[attributeName];
     const $attributeItem = $('<div>').addClass('attribute-item');
-    $attributeItem.append($('<p>').text(`${attributeName}: ${totalScore}`));
+
+    // Append the attribute name to the attribute item
+    $attributeItem.append($('<p>').text(attributeName));
 
     // Create bar chart
     const $barChart = $('<div>').addClass('bar-chart');
@@ -364,17 +402,26 @@ function displayEndOfQuiz() {
       width: totalScore * 20 + 'px', // Adjust the multiplier for the width
       backgroundColor: getRandomColor()
     });
-    $bar.text(totalScore);
+    $bar.text(totalScore); // Keep the score text in the bar chart
     $barChart.append($bar);
 
+    // Append the bar chart to the attribute item
     $attributeItem.append($barChart);
+
+    // Append the attribute item to the container
     $attributeContainer.append($attributeItem);
   });
 
-  // Clear previous data and scores
-  organizedData = [];
+  // Display "Save" button only at the last screen
+  const $saveContainer = $('<div>').addClass('save-container');
+  const $saveButton = $('<button>').attr('id', 'saveButton').text('Save');
+  $saveButton.on('click', function () {
+    // Save the quiz data to Firebase
+    saveQuizData(userInfo, attributeScores);
+  });
+  $saveContainer.append($saveButton);
 
-  // Display reset button
+  // Display reset button only at the last screen
   const $resetButton = $('<button>').attr('id', 'resetButton').text('Reset Quiz');
   $resetButton.on('click', resetQuiz);
 
@@ -387,10 +434,10 @@ function displayEndOfQuiz() {
   const $registerContainer = $('<div>').addClass('register-container').append($registerButton);
 
   // Remove previous containers and progress bar
-  $('.attribute-container, #resetButton, .read-more-container, .register-container, .progress-bar-container').remove();
+  $('.attribute-container, .save-container, #resetButton, .read-more-container, .register-container, .progress-bar-container').remove();
 
   // Append everything to the main container
-  $('.container').append($attributeContainer, $resetButton, $readMoreContainer, $registerContainer);
+  $('.container').append($attributeContainer, $resetButton, $readMoreContainer, $registerContainer, $saveContainer);
 }
 
 
@@ -407,6 +454,7 @@ function getRandomColor() {
 
 
 
+// Clear previous data function
 function clearPreviousData() {
   organizedData = [];
 
@@ -418,6 +466,9 @@ function clearPreviousData() {
 
   // Initialize a new progress bar
   initProgressBar();
+
+  // Ensure the Reset button is not displayed at the start
+  $('#resetButton').remove();
 }
 
 
